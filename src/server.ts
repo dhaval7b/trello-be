@@ -4,22 +4,36 @@ import {Server} from "socket.io";
 import mongoose from "mongoose";
 // import User from "./models/user";
 import * as usersController from "./controllers/users";
+import * as boardsController from "./controllers/boards";
 import bodyParser, { json } from "body-parser";
 import authMiddleware from "./middlewares/auth";
+
+import cors from "cors";
+
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer);
 
+
+app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: true}));
 app.get("/", (req, res) =>{
     res.send("API is up");
-})
+});
+//@ts-ignore
+app.get("/api/boards/:boardId", authMiddleware, boardsController.getBoard)
+// @ts-ignore
+app.get("/api/boards", authMiddleware,  boardsController.getBoards);
+
+
 
 app.post("/api/users/login", usersController.login);
 app.post("/api/users", usersController.register);
+// @ts-ignore
 app.get("/api/user", authMiddleware, usersController.currentUser);
-// app.route("api/users/login").post(usersController.login);
+// @ts-ignore
+app.post("/api/boards", authMiddleware, boardsController.createBoard)
 
 
 io.on('connection',()=>{

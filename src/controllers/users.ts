@@ -1,11 +1,9 @@
 import { Request, Response, NextFunction } from "express-serve-static-core";
 import UserModel from '../models/user';
-import user from "../models/user";
 import { UserDocument } from "../types/user.interface";
 import { Error } from "mongoose";
 import jwt from "jsonwebtoken";
 import { secret } from '../config';
-import { response } from "express";
 import { ExpressRequestInterface } from "../types/ExpressRequest.interface";
 
 const normalizeUser = (user:UserDocument)=>{
@@ -14,7 +12,7 @@ const normalizeUser = (user:UserDocument)=>{
         email : user.email,
         username: user.username,
         id: user.id,
-        token
+        token: `Bearer ${token}`
     }
 }
 export const register = async (req: Request, res: Response, next:NextFunction)=>{
@@ -26,6 +24,7 @@ export const register = async (req: Request, res: Response, next:NextFunction)=>
         });
         console.log("new user: ", newUser);
         const savedUser = await newUser.save();
+        console.log(savedUser)
         res.send(normalizeUser(savedUser));
     } catch(err){
         if(err instanceof Error.ValidationError){
@@ -39,13 +38,17 @@ export const register = async (req: Request, res: Response, next:NextFunction)=>
 
 export const login = async ( req: Request, res: Response, next:NextFunction) => {
     try{
-        const user = await UserModel.findOne({email: req.body.email});
+        const user = await UserModel.findOne({email: req.body.email}).select('+password');
         const errors = {emailOrPassword: "incorrect email or password"};
         if (!user){
             console.log("does not exist");
-            return res.status(422).json();
+            return res.status(422).json(errors);
         }
-        console.log(user);
+        const isSamePassword = await user.validatePassword(req.body.password);
+
+        if (!isSamePassword) {
+        return res.status(422).json(errors);
+        }
         res.send(normalizeUser(user));
     } catch(err){
         next(err);
@@ -56,5 +59,5 @@ export const currentUser = async(req: ExpressRequestInterface, res: Response, ne
     if (!req.user){
         return res.sendStatus(401);
     }
-    res.send(normalizeUser(req.user))
+    res.send(normalizeUser(req.user));
 };
